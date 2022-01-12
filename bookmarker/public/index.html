@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="./style.css" type="text/css">
+    <title>nmsl</title>
+</head>
+<body>
+    <h1>Bookmarker</h1>
+    <div class="error-message"></div>
+    <selection class="add-new-bookmarker">
+        <form class="new-bookmarker-form">
+            <input
+                type="url"
+                class="new-bookmarker-url"
+                placeholder="URL"
+                required
+                size="100"
+            />
+            <button
+                type="submit"
+                class="new-bookmarker-submit"
+                disabled
+            >Submit</button>
+        </form>
+    </selection>
+    <selection class="bookmarkers"></selection>
+    <selection class="controls">
+        <button class="clear-storage">Clear Storage</button>
+    </selection>
+    <script>require("../dist/renderer.js")</script>
+</body>
+</html>
