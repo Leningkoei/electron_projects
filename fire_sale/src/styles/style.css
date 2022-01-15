@@ -1,3 +1,6 @@
+*, *:before, *:after {
+    box-sizing: border-box;
+}
 html {
     height: 100vh;
     width: 100vw;
@@ -45,9 +48,6 @@ button:disabled {
 .raw-markdown {
     height: 100%;
     width: 50%;
-
-    border: 0;
-    padding: 0;
 
     background-color: rgb(238, 252, 250);
     resize: none;

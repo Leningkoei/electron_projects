@@ -10,6 +10,7 @@
   "author": "leningkoei",
   "license": "ISC",
   "devDependencies": {
+    "@electron/remote": "^2.0.1",
     "electron": "^16.0.7"
   }
 }
