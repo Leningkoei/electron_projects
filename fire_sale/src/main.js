@@ -3,32 +3,20 @@ const enableRemote = require("@electron/remote/main").enable;
 const { app, BrowserWindow, dialog } = require("electron");
 const fs = require("fs");
 
-// let mainWindow = null;
 const windows = new Set();
 
 app.on("ready", () => {
     createWindow();
-
-    // mainWindow = new BrowserWindow({
-    //     webPreferences: {
-    //         contextIsolation: false,
-    //         nodeIntegration: true
-    //     }
-    // });
-
-    // mainWindow.on("closed", () => {
-    //     mainWindow = null;
-    // });
-
-   /// / require("@electron/remote/main").enable(mainWindow.webContents);
-    // enableRemote(mainWindow.webContents);
-
-    // mainWindow.loadFile("./src/statics/index.html");
-
-    // mainWindow.webContents.openDevTools({
-    //     mode: "detach"
-    // });
 });
+
+function openFile(targetWindow, filePath) {
+    const content = fs.readFileSync(filePath).toString();
+
+    app.addRecentDocument(filePath);
+    targetWindow.setRepresentedFilename(filePath);                              // add file to recently open file;
+
+    targetWindow.webContents.send("file-opened", filePath, content);            // send a message to renderer process;
+};
 
 function createWindow() {
     let x = undefined;
@@ -66,16 +54,17 @@ function createWindow() {
 };
 async function getFileFromUser(targetWindow) {
     const files = (await dialog.showOpenDialog(targetWindow, {
-        properties: [ "openFile" ],
-        filters: [
+        "properties": [ "openFile" ],
+        "defaultPath": app.getPath("documents"),
+        "filters": [
             {
-                name: "Text Files",
-                extensions: ["txt"]
+                "name": "Markdown Files",
+                "extensions": [ "md", "markdown" ]
             },
             {
-                name: "Markdown Files",
-                extensions: [ "md", "markdown" ]
-            }
+                "name": "Text Files",
+                "extensions": [ "txt" ]
+           }
         ]
     })).filePaths;
 
@@ -83,12 +72,44 @@ async function getFileFromUser(targetWindow) {
         openFile(targetWindow, files[0]);
     };
 };
-function openFile(targetWindow, file) {
-    const content = fs.readFileSync(file).toString();
+async function saveMarkdown(targetWindow, filePath, content) {
+    if (!filePath) {
+        filePath = (await dialog.showSaveDialog(targetWindow, {
+            "title": "Save Markdown",
+            "defaultPath": app.getPath("documents"),
+            "filters": [
+                {
+                    "name": "Markdown Files",
+                    "extensions": [ "md", "markdown" ]
+                }
+            ]
+        })).filePath;
+    };
 
-    targetWindow.webContents.send("file-opened", file, content);
+    if (filePath) {
+        fs.writeFileSync(filePath, content);
+        openFile(targetWindow, filePath);
+    };
+};
+async function saveHTML(targetWindow, content) {
+    const filePath = (await dialog.showSaveDialog(targetWindow, {
+        "title": "Save HTML",
+        "defaultPath": app.getPath("documents"),
+        "filters": [
+            {
+                "name": "HTML Files",
+                "extensions": [ "html", "htm" ]
+            }
+        ]
+    })).filePath;
+
+    if (filePath) {
+        fs.writeFileSync(filePath, content);
+    };
 };
 
 exports.createWindow = createWindow;
 exports.getFileFromUser = getFileFromUser;
+exports.saveMarkdown = saveMarkdown;
+exports.saveHTML = saveHTML;
 
