@@ -19,6 +19,60 @@ const openInDefaultButton = document.querySelector("#open-in-default");
 const markdownView = document.querySelector("#markdown");
 const htmlView = document.querySelector("#html");
 
+ipcRenderer.on("file-opened", async (
+    event,
+    currentFilePath,
+    currentContent
+) => {
+    if (currentWindow.isDocumentEdited()) {
+        const result = await remote.dialog.showMessagebox(currentWindow, {
+            "type": "warning",
+            "title": "Overwrite Current Unsaved Changes?",
+            "message": "Opening a new file in the window will overwrite your " +
+                "unsaved changes. Open this file anyway?",
+            "buttons": [
+                "Yes",
+                "Cancel"
+            ],
+            "defaultId": 1,
+            "cancelId": 1
+        });
+
+        if (result === 0) {
+            renderFile(currentFilePath, currentContent);
+        };
+    } else {
+        renderFile(currentFilePath, currentContent);
+    };
+});
+ipcRenderer.on("file-changed", async (
+    event,
+    currentFilePath,
+    currentContent
+) => {
+    const result = await remote.dialog.showMessagebox(currentWindow, {
+        "type": "warning",
+        "title": "Overwrite Current Unsaved Changes?",
+        "message": "Another application has changed this file. Load changes?",
+        "button": [
+            "Yes",
+            "Cancel"
+        ],
+        "defaultId": 1,
+        "cancelId": 1
+    });
+
+    if (result === 0) {
+        renderFile(currentFilePath, currentContent);
+    };
+});
+ipcRenderer.on("save-markdown", () => {
+    mainProcess.saveMarkdown(currentWindow, filePath, markdownView.value);
+});
+ipcRenderer.on("save-html", () => {
+    mainProcess.saveHTML(currentWindow, filePath, htmlView.innerHTML);
+});
+
 document.addEventListener("dragstart", event => event.preventDefault());
 document.addEventListener("dragover", event => event.preventDefault());
 document.addEventListener("dragleave", event => event.preventDefault());
@@ -48,33 +102,50 @@ markdownView.addEventListener("keyup", (event) => {
     updateUserInterface(currentContent !== originalContent);
 });
 markdownView.addEventListener("dragover", (event) => {
-    const filePath = getDraggedFile(event);
-    // TODO
+    const file = getDraggedFile(event);
 
-ipcRenderer.on("file-opened", (event, file, content) => {
-    filePath = file;
-    originalContent = content;
+    if (fileTypeIsSupported(file)) {
+        markdownView.classList.add("drag-over");
+    } else {
+        markdownView.classList.add("drag-error");
+    };
+});
+markdownView.addEventListener("drop", (event) => {
+    const filePath = getDroppedFile(event);
 
-    markdownView.value = content;
-    renderMarkdownToHTML(content);
+    if (fileTypeIsSupported(filePath)) {
+        mainProcess.openFile(currentWindow, file.path);
+    } else {
+        alert("That file type is not supported!");
+    };
 
-    updateUserInterface(false);                                                 // update title of window;
+    markdownView.classList.remove("drag-over");
+    markdownView.classList.remove("drag-error");
+});
+markdownView.addEventListener("dragleave", (event) => {
+    markdownView.classList.remove("drag-over");
+    markdownView.classList.remove("drag-error");
 });
 
 function fileTypeIsSupported(file) {
     return [ "text/plain", "text/markdown" ].includes(file.type);
 };
 function getDraggedFile(event) {
-    event.dataTransfer.items[0];
+    return event.dataTransfer.items[0];
 };
 function getDroppedFile(event) {
-    event.dataTransfer.files[0];
+    return event.dataTransfer.files[0];
+};
+function renderFile(currentFilePath, currentContent) {
+    filePath = currentFilePath;
+    originalContent = currentContent;
+
+    markdownView.value = currentContent;
+    renderMarkdownToHTML(currentContent);
+
+    updateUserInterface(false);
 };
 function renderMarkdownToHTML(markdown) {
-    // htmlView.innerHTML = marked.parse(markdown, {
-    //     sanitize: true
-    // });
-
     htmlView.innerHTML = marked.parse(markdown);
 };
 function updateUserInterface(isEdited) {

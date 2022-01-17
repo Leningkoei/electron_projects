@@ -1,11 +1,15 @@
 require("@electron/remote/main").initialize();
 const enableRemote = require("@electron/remote/main").enable;
-const { app, BrowserWindow, dialog } = require("electron");
+const { app, BrowserWindow, dialog, Menu } = require("electron");
 const fs = require("fs");
+const applicationMenu = require("./application_menu.js");
 
 const windows = new Set();
+const openFiles = new Map();
 
 app.on("ready", () => {
+    Menu.setApplicationMenu(applicationMenu);
+
     createWindow();
 });
 
@@ -16,6 +20,30 @@ function openFile(targetWindow, filePath) {
     targetWindow.setRepresentedFilename(filePath);                              // add file to recently open file;
 
     targetWindow.webContents.send("file-opened", filePath, content);            // send a message to renderer process;
+
+    startWatchingFile(targetWindow, filePath);
+};
+function startWatchingFile(targetWindow, filePath) {
+    stopWatchingFile(targetWindow);
+
+    const watcher = fs.watch(filePath, (event) => {
+        if (event == "change") {
+            // open this file again;
+
+            const content = fs.readFileSync(filePath);
+
+            targetWindow.webContents.send("file-changed", filePath, content);
+        };
+    });
+
+    openFiles.set(targetWindow, watcher);
+};
+function stopWatchingFile(targetWindow) {
+    if (openFiles.has(targetWindow)) {
+        openFiles.get(targetWindow).close();
+
+        openFiles.delete(openFiles);
+    };
 };
 
 function createWindow() {
@@ -39,14 +67,36 @@ function createWindow() {
         }
     });
 
+    newWindow.on("close", () => {
+        if (newWindow.isDocumentEdited()) {
+            event.preventDefault();
+
+            const result = dialog.showMessageBox(newWindow, {
+                "type": "warning",
+                "title": "Quit with Unsaved Changes?",
+                "message": "Your changes while be lost if you do not save.",
+                "buttons": [
+                    "Quit Anyway",
+                    "Cancel"
+                ],
+                "defaultId": 1,
+                "cancelId": 1
+            });
+
+            if (result === 0) {
+                newWindow.destroy();
+            };
+        };
+    });
     newWindow.on("closed", () => {
         windows.delete(newWindow);
+        stopWatchingFile(newWindow);
         newWindow = null;
     });
 
     enableRemote(newWindow.webContents);
 
-    newWindow.loadFile("./src/statics/index.html");
+    newWindow.loadFile("./src/index.html");
 
     windows.add(newWindow);
 
